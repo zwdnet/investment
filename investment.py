@@ -4,11 +4,49 @@
 import tushare as ts
 import matplotlib.pyplot as pyplot
 import pandas as pd
+import numpy as np
 
 df = pd.read_csv('399300.csv')
 df_etf = pd.read_csv('510300.csv')
 df_SH = pd.read_csv('000001.csv')
 df_SH['close'] = df_SH['close']/1000.0 # 因为指数数值太大了，缩小1000倍，方便模拟。
+
+# 处理数据，计算5日均值，10日均值，30日均值，60日均值
+def dataDeal(df_data):
+    MA5 = []
+    MA10 = []
+    MA30 = []
+    MA60 = []
+    n = len(df_data)
+    for i in range(n):
+        # 计算MA5
+        if i < 5:
+            MA5.append(np.mean(df_data['close'][0:i]))
+        else:
+            MA5.append(np.mean(df_data['close'][i-5+1:i]))
+        # 计算MA10
+        if i < 10:
+            MA10.append(np.mean(df_data['close'][0:i]))
+        else:
+            MA10.append(np.mean(df_data['close'][i-10+1:i]))
+        # 计算MA30
+        if i < 30:
+            MA30.append(np.mean(df_data['close'][0:i]))
+        else:
+            MA30.append(np.mean(df_data['close'][i-30+1:i]))
+        # 计算MA60
+        if i < 60:
+            MA60.append(np.mean(df_data['close'][0:i]))
+        else:
+            MA60.append(np.mean(df_data['close'][i-60+1:i]))
+        if i == 0:
+            num = df_data['close'][0]
+            MA5[0] = MA10[0] = MA30[0] = MA60[0] = num
+
+
+dataDeal(df_SH)
+print(df_SH.head())
+
 
 p1 = pyplot.subplot(311)
 p2 = pyplot.subplot(312)
@@ -59,6 +97,8 @@ class Module(object):
         self.rate = [] # 每期的收益率
         self.cost = [] # 累计交易成本
         self.costrate = [] # 每期的累计成本率
+        # 评价模型的指标
+        self.maxDrawdown = 0.0 # 最大回撤
 
     # 运行模拟
     def run(self):
@@ -79,7 +119,7 @@ class Module(object):
             self.total.append(all)
             self.invest += self.num
             self.input.append(self.invest)
-            self.rate.append(self.total[j]/self.invest)
+            self.rate.append((self.total[j]-self.invest)/self.invest)
             self.costrate.append(self.cost[j]/float(self.invest))
             # print(i, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
             j = j+1
@@ -102,9 +142,18 @@ class Module(object):
         p4.set_title("Cost rate graph")
         pyplot.show()
 
+    # 评价模型
+    def Judge(self):
+        # 计算最大回撤
+        maxValue = max(self.total)
+        maxIndex = self.total.index(maxValue)
+        minValue = min(self.total[maxIndex:])
+        self.maxDrawdown = (maxValue - minValue)/minValue
+
     # 返回模拟结果
     def getResult(self):
-        return self.total[-1], self.rate[-1], self.costrate[-1]
+        self.Judge()
+        return self.total[-1], self.rate[-1], self.costrate[-1], self.maxDrawdown
 
 module = Module(df_SH)
 module.run()
