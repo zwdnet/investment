@@ -42,6 +42,10 @@ def dataDeal(df_data):
         if i == 0:
             num = df_data['close'][0]
             MA5[0] = MA10[0] = MA30[0] = MA60[0] = num
+    df_data['MA5'] = MA5
+    df_data['MA10'] = MA10
+    df_data['MA30'] = MA30
+    df_data['MA60'] = MA60
 
 
 dataDeal(df_SH)
@@ -54,6 +58,10 @@ p3 = pyplot.subplot(313)
 p1.plot(df['close'])
 p2.plot(df_etf['close'])
 p3.plot(df_SH['close'])
+p3.plot(df_SH['MA5'])
+p3.plot(df_SH['MA10'])
+p3.plot(df_SH['MA30'])
+p3.plot(df_SH['MA60'])
 pyplot.show()
 
 print(len(df), len(df_etf), len(df_SH))
