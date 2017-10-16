@@ -176,10 +176,13 @@ class Module2(Module):
         self.closep = df_data['close'].values
         # 算历史底部的数据
         self.xt = []
+        self.yt = []
         self.est = []
         self.d = []
         self.idx = []
 
+
+    # 找到指数历史相对最低点
     def findBottom(self):
         for i in range(1, len(self.highp) - 1):
             if (self.highp[i] <= self.highp[i - 1] and
@@ -199,14 +202,24 @@ class Module2(Module):
         self.xt = np.atleast_2d(np.linspace(0, len(self.closep)+200, len(self.closep)+200)).T
         self.estV = lr.predict(self.xt)
 
+
+    # 找到指数趋势
+    def findTrend(self):
+        lr = LinearRegression()
+        x = np.atleast_2d(np.linspace(0, len(self.closep), len(self.closep))).T
+        lr.fit(x, self.closep)
+        self.xt = np.atleast_2d(np.linspace(0, len(self.closep)+200, len(self.closep)+200)).T
+        self.yt = lr.predict(self.xt)
+
     def draw(self):
-        # self.findBottom()
+        self.findBottom()
+        self.findTrend()
         plt.plot(self.closep)
         plt.plot(self.idx, self.d, 'ko')
         plt.plot(self.xt, self.estV, '-r', linewidth=5)
+        plt.plot(self.xt, self.yt, '-g', linewidth=5)
         plt.show()
 
 
 module2 = Module2(df_SH)
-module2.findBottom()
 module2.draw()

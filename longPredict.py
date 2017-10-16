@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import scipy as sp
 import itertools
 from sklearn.linear_model import LinearRegression
+from LIS import LIS
 
 df_SH = pd.read_csv('000001.csv')
 
@@ -27,35 +28,23 @@ plt.plot(closep)
 plt.show()
 
 
-def LIS(X):
-    N = len(X)
-    P = [0]*N
-    M = [0]*(N+1)
-    L = 0
-    for i in range(N):
-        lo = 1
-        hi = L
-        while lo <= hi:
-            mid = (lo+hi)//2
-            if (X[M[mid]] < X[i]):
-                lo = mid+1
-            else:
-                hi = mid-1
-        newL = lo
-        P[i] = M[newL - 1]
-        M[newL] = i
-
-        if (newL > L):
-            L = newL
-
-    S = []
+def LIS2(X):
+    n = len(X)
+    m = [0]*n
+    result = []
     pos = []
-    k = M[L]
-    for i in range(L-1, -1, -1):
-        S.append(X[k])
-        pos.append(k)
-        k = P[k]
-    return S[::-1], pos[::-1]
+    for x in range(n-2, -1, -1):
+        for y in range(n-1, x, -1):
+            if X[x] < X[y] and m[x] <= m[y]:
+                m[x] += 1
+        max_value = max(m)
+        for i in range(n):
+            if m[i] == max_value:
+                result.append(X[i])
+                pos.append(i)
+                max_value -= 1
+    return result, pos
+
 
 
 bV = []
