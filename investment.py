@@ -16,6 +16,7 @@ df_SH['low'] = df_SH['low'] / 1000.0
 df_SH['high'] = df_SH['high'] / 1000.0
 df_SH['open'] = df_SH['open'] / 1000.0
 
+
 # 处理数据，计算5日均值，10日均值，30日均值，60日均值
 def dataDeal(df_data):
     MA5 = []
@@ -181,8 +182,7 @@ class Module2(Module):
         self.d = []
         self.idx = []
 
-
-    # 找到指数历史相对最低点
+    # 找到指数历史相对最低点 红线
     def findBottom(self):
         for i in range(1, len(self.highp) - 1):
             if (self.highp[i] <= self.highp[i - 1] and
@@ -191,7 +191,7 @@ class Module2(Module):
                         self.lowp[i] < self.lowp[i + 1]):
                 self.bV.append(self.lowp[i])
                 self.bP.append(i)
-        self.d,p = LIS(self.bV)
+        self.d, p = LIS(self.bV)
         self.idx = []
         for i in range(len(p)):
             self.idx.append(self.bP[p[i]])
@@ -199,27 +199,125 @@ class Module2(Module):
         X = np.atleast_2d(np.array(self.idx)).T
         Y = np.array(self.d)
         lr.fit(X, Y)
-        self.xt = np.atleast_2d(np.linspace(0, len(self.closep)+200, len(self.closep)+200)).T
+        self.xt = np.atleast_2d(np.linspace(0, len(self.closep) + 200, len(self.closep) + 200)).T
         self.estV = lr.predict(self.xt)
 
-
-    # 找到指数趋势
+    # 找到指数趋势 绿线
     def findTrend(self):
         lr = LinearRegression()
         x = np.atleast_2d(np.linspace(0, len(self.closep), len(self.closep))).T
         lr.fit(x, self.closep)
-        self.xt = np.atleast_2d(np.linspace(0, len(self.closep)+200, len(self.closep)+200)).T
+        self.xt = np.atleast_2d(np.linspace(0, len(self.closep) + 200, len(self.closep) + 200)).T
         self.yt = lr.predict(self.xt)
 
     def draw(self):
-        self.findBottom()
-        self.findTrend()
+        # self.findBottom()
+        # self.findTrend()
         plt.plot(self.closep)
         plt.plot(self.idx, self.d, 'ko')
         plt.plot(self.xt, self.estV, '-r', linewidth=5)
         plt.plot(self.xt, self.yt, '-g', linewidth=5)
         plt.show()
 
+        p1 = plt.subplot(4, 1, 1)
+        p2 = plt.subplot(4, 1, 2)
+        p3 = plt.subplot(4, 1, 3)
+        p4 = plt.subplot(4, 1, 4)
+        p1.plot(self.total)
+        p1.plot(self.input)
+        p1.set_title("All money of graph")
+        p2.plot(self.rate)
+        p2.set_title("All interst of graph")
+        p3.plot(self.cost)
+        p3.set_title("Cost graph")
+        p4.plot(self.costrate)
+        p4.set_title("Cost rate graph")
+        plt.show()
+
+    # 买入操作
+    def buy(self, money, i, j):
+        self.stock.append(int((money / self.df_data['close'].values[i]) / 100) * 100)
+        self.number += self.stock[j]
+        self.investnow = self.stock[j] * self.df_data['close'].values[i]  # 本期买的股票市值
+        self.costnow = self.investnow * self.fee
+        if self.costnow < 0.1:
+            self.costnow = 0.1
+        if j == 0:
+            self.cost.append(self.costnow)
+        else:
+            self.cost.append(self.cost[j-1] + self.costnow)
+        all = self.number * self.df_data['close'].values[i] + \
+              (money - self.investnow) - self.costnow  # 股票总市值与现金之和，扣除了成本。
+        self.total.append(all)
+        self.invest += money
+        self.input.append(self.invest)
+        self.rate.append((self.total[j] - self.invest) / self.invest)
+        self.costrate.append(self.cost[j] / float(self.invest))
+        # print(i, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+
+    # 卖出操作
+    def sell(self, money, i, j):
+        self.stock.append(int((money / self.df_data['close'].values[i]) / 100) * 100)
+        self.number += self.stock[j]
+        self.investnow = abs(self.stock[j] * self.df_data['close'].values[i])  # 本期卖出的股票市值
+        self.costnow = self.investnow * self.fee
+        if self.costnow < 0.1:
+            self.costnow = 0.1
+        if j == 0:
+            self.cost.append(self.costnow)
+        else:
+            self.cost.append(self.cost[j-1] + self.costnow)
+        all = self.number * self.df_data['close'].values[i] + \
+              self.investnow - self.costnow  # 股票总市值与现金之和，扣除了成本。
+        self.total.append(all)
+        self.invest += 0
+        self.input.append(self.invest)
+        self.rate.append((self.total[j] - self.invest) / self.invest)
+        self.costrate.append(self.cost[j] / float(self.invest))
+        # print(i, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+
+    '''
+    运行模拟，规则如下：
+    指数向下击穿绿线定投开始
+    绿线以下红线以上，使用平均成本法定投
+    红线以下使用恒定市值法定投
+    指数向上越过绿线定投结束。
+    '''
+
+    def run(self):
+        self.findBottom()
+        self.findTrend()
+        bGreen = False  # 指数是否在绿线以下
+        bRed = False  # 指数是否在红线以下
+        j = 0 # 定投期数
+        for i in range(0, self.n, 30):
+            if self.closep[i] <= self.yt[i]:
+                bGreen = True
+            if self.closep[i] <= self.estV[i]:
+                bRed = True
+            # 判断完毕，开始按策略投资。
+            # 绿线以下，红线以上 平均成本法定投
+            if bGreen == True and bRed == False:
+                self.buy(self.num, i, j)
+                print(i, j, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+                j = j + 1
+            # 红线以下 恒定市值定投法
+            if bRed == True:
+                # 先计算应达到的市值总额
+                all = (j + 1) * self.num
+                # 计算总额与实际值的差额，即为本期应当投入的资金额。
+                money = all - self.total[-1]
+                if money > 0:  # 需要买入
+                    self.buy(money, i, j)
+                if money < 0:  # 市值太高，需要卖出
+                    self.sell(money, i, j)
+                print(i, j, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+                j = j + 1
+
+
 
 module2 = Module2(df_SH)
+module2.run()
 module2.draw()
+result = module.getResult()
+print(result)
