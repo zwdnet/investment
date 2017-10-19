@@ -40,7 +40,8 @@ def dataDeal(df_data):
             MA30.append(np.mean(df_data['close'][0:i]))
         else:
             MA30.append(np.mean(df_data['close'][i - 30 + 1:i]))
-        # 计算MA60
+        # 计算MA
+        # 0
         if i < 60:
             MA60.append(np.mean(df_data['close'][0:i]))
         else:
@@ -102,28 +103,49 @@ class Module(object):
         # 评价模型的指标
         self.maxDrawdown = 0.0  # 最大回撤
 
+    # 买入操作
+    def buy(self, i, j):
+        self.stock.append(int((self.num / self.df_data['close'].values[i]) / 100) * 100)
+        self.number += self.stock[j]
+        investnow = self.stock[j] * self.df_data['close'].values[i]  # 本期买的股票市值
+        costnow = investnow * self.fee
+        if costnow < 0.1:
+            costnow = 0.1
+        if j == 0:
+            self.cost.append(costnow)
+        else:
+            self.cost.append(self.cost[j - 1] + costnow)
+        all = self.number * self.df_data['close'].values[i] + \
+            (self.num - investnow) - costnow  # 股票总市值与现金之和，扣除了成本。
+        self.total.append(all)
+        self.invest += self.num
+        self.input.append(self.invest)
+        self.rate.append((self.total[j] - self.invest) / self.invest)
+        self.costrate.append(self.cost[j] / float(self.invest))
+
     # 运行模拟
     def run(self):
         j = 0
         for i in range(0, self.n, 30):
-            self.stock.append(int((self.num / self.df_data['close'].values[i]) / 100) * 100)
-            self.number += self.stock[j]
-            self.investnow = self.stock[j] * self.df_data['close'].values[i]  # 本期买的股票市值
-            self.costnow = self.investnow * self.fee
-            if self.costnow < 0.1:
-                self.costnow = 0.1
-            if j == 0:
-                self.cost.append(self.costnow)
-            else:
-                self.cost.append(self.cost[j - 1] + self.costnow)
-            all = self.number * self.df_data['close'].values[i] + \
-                  (self.num - self.investnow) - self.costnow  # 股票总市值与现金之和，扣除了成本。
-            self.total.append(all)
-            self.invest += self.num
-            self.input.append(self.invest)
-            self.rate.append((self.total[j] - self.invest) / self.invest)
-            self.costrate.append(self.cost[j] / float(self.invest))
+            # self.stock.append(int((self.num / self.df_data['close'].values[i]) / 100) * 100)
+            # self.number += self.stock[j]
+            # self.investnow = self.stock[j] * self.df_data['close'].values[i]  # 本期买的股票市值
+            # self.costnow = self.investnow * self.fee
+            # if self.costnow < 0.1:
+            #     self.costnow = 0.1
+            # if j == 0:
+            #     self.cost.append(self.costnow)
+            # else:
+            #     self.cost.append(self.cost[j - 1] + self.costnow)
+            # all = self.number * self.df_data['close'].values[i] + \
+            #       (self.num - self.investnow) - self.costnow  # 股票总市值与现金之和，扣除了成本。
+            # self.total.append(all)
+            # self.invest += self.num
+            # self.input.append(self.invest)
+            # self.rate.append((self.total[j] - self.invest) / self.invest)
+            # self.costrate.append(self.cost[j] / float(self.invest))
             # print(i, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+            self.buy(i, j)
             j = j + 1
 
     # 作图
@@ -235,7 +257,7 @@ class Module2(Module):
         plt.show()
 
     # 买入操作
-    def buy(self, money, i, j):
+    def buy2(self, money, i, j):
         self.stock.append(int((money / self.df_data['close'].values[i]) / 100) * 100)
         self.number += self.stock[j]
         self.investnow = self.stock[j] * self.df_data['close'].values[i]  # 本期买的股票市值
@@ -256,7 +278,7 @@ class Module2(Module):
         # print(i, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
 
     # 卖出操作
-    def sell(self, money, i, j):
+    def sell2(self, money, i, j):
         self.stock.append(int((money / self.df_data['close'].values[i]) / 100) * 100)
         self.number += self.stock[j]
         self.investnow = abs(self.stock[j] * self.df_data['close'].values[i])  # 本期卖出的股票市值
@@ -291,16 +313,17 @@ class Module2(Module):
         bRed = False  # 指数是否在红线以下
         j = 0 # 定投期数
         for i in range(0, self.n, 30):
-            if self.closep[i] <= self.yt[i]:
+            if self.closep[i] <= 1.2*self.yt[i]:
                 bGreen = True
-            if self.closep[i] <= self.estV[i]:
+            if self.closep[i] <= 1.2*self.estV[i]:
                 bRed = True
             # 判断完毕，开始按策略投资。
             # 绿线以下，红线以上 平均成本法定投
             if bGreen == True and bRed == False:
-                self.buy(self.num, i, j)
-                print(i, j, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+                self.buy2(self.num, i, j)
+                # print(i, j, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
                 j = j + 1
+            '''
             # 红线以下 恒定市值定投法
             if bRed == True:
                 # 先计算应达到的市值总额
@@ -311,13 +334,91 @@ class Module2(Module):
                     self.buy(money, i, j)
                 if money < 0:  # 市值太高，需要卖出
                     self.sell(money, i, j)
-                print(i, j, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+                # print(i, j, self.total[j], self.rate[j], self.costrate[j]) # 输出每期投资后的总市值以及收益率
+                print(i, j, self.input[j])
                 j = j + 1
+            '''
 
-
-
+'''
 module2 = Module2(df_SH)
 module2.run()
 module2.draw()
-result = module.getResult()
+result = module2.getResult()
+print(result)
+'''
+
+# 又一个模拟，根据日均线值进行止盈和止损。
+class Module3(Module):
+    def __init__(self, df_data):
+        Module.__init__(self, df_data)
+        self.cut = 0.1  # 止盈/止损线
+        self.max = 0    # 最高值
+        self.min = 0    # 最低值
+
+    # 买入操作
+    def buy(self, i, j):
+        self.stock.append(int((self.num / self.df_data['close'].values[i]) / 100) * 100)
+        self.number += self.stock[j]
+        investnow = self.stock[j] * self.df_data['close'].values[i]  # 本期买的股票市值
+        costnow = investnow * self.fee
+        if costnow < 0.1:
+            costnow = 0.1
+        if j == 0:
+            self.cost.append(costnow)
+        else:
+            self.cost.append(self.cost[j - 1] + costnow)
+        all = self.number * self.df_data['close'].values[i] + \
+            (self.num - investnow) - costnow  # 股票总市值与现金之和，扣除了成本。
+        self.total.append(all)
+        self.invest += self.num
+        self.input.append(self.invest)
+        self.rate.append((self.total[j] - self.invest) / self.invest)
+        # 止盈操作
+        if self.max != 0 and self.rate[-1] >= (1 + self.cut) * self.max:
+            # 涨幅超过10%就卖出存量股票的10%
+            sell = self.cut * self.number
+            money = sell * self.df_data['close'].values[i]
+            self.number -= sell
+            costnow = money * self.fee
+            if costnow < 0.1:
+                costnow = 0.1
+            self.cost[-1] += costnow
+            all = self.number * self.df_data['close'].values[i] + \
+                  money - costnow
+            self.total[-1] = all
+            self.rate[-1] = ((self.total[j] - self.invest) / self.invest)
+        # 止损操作
+        if self.min != 0 and self.rate[-1] <= (1 - self.cut) * self.max:
+            # 跌幅超过10%就买入存量股票的10%
+            buy = self.cut * self.number
+            money = buy * self.df_data['close'].values[i]
+            self.number += buy
+            costnow = money * self.fee
+            if costnow < 0.1:
+                costnow = 0.1
+            self.cost[-1] += costnow
+            all = self.number * self.df_data['close'].values[i] - \
+                  money - costnow
+            self.total[-1] = all
+            self.rate[-1] = ((self.total[j] - self.invest) / self.invest)
+        if self.rate[-1] >= self.max:
+            self.max = self.rate[-1]
+        elif self.rate[-1] <= self.min:
+            self.min = self.rate[-1]
+        self.costrate.append(self.cost[j] / float(self.invest))
+
+
+    def run(self):
+        j = 0
+        for i in range(0, self.n, 30):
+            if self.df_data['MA60'][i] < self.df_data['MA30'][i]: # 30日均线超过60日均线，买入
+                self.buy(i, j)
+
+                j = j+1
+
+
+module3 = Module3(df_SH)
+module3.run()
+module3.draw()
+result = module3.getResult()
 print(result)

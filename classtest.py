@@ -8,6 +8,9 @@ class A(object):
     def sayHello(self):
         print("This is A")
 
+    def test(self, text):
+        print("A test:", text)
+
 
 a = A()
 a.sayHello()
@@ -20,6 +23,7 @@ class B(A):
 
     def sayHello(self):
         print("This is B")
+        A.test(self, "From B")
 
 
 b = B()
