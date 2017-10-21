@@ -400,6 +400,7 @@ class Module3(Module):
             all = self.number * self.df_data['close'].values[i] - \
                   money - costnow
             self.total[-1] = all
+            self.invest += money
             self.rate[-1] = ((self.total[j] - self.invest) / self.invest)
         if self.rate[-1] >= self.max:
             self.max = self.rate[-1]
